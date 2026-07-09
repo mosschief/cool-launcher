@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Minimal shell prompt: ">_" in the foreground color -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M40,46 L52,54 L40,62"
+        android:strokeColor="@color/fg"
+        android:strokeWidth="4"
+        android:strokeLineCap="square" />
+    <path
+        android:pathData="M56,62 L68,62"
+        android:strokeColor="@color/fg"
+        android:strokeWidth="4"
+        android:strokeLineCap="square" />
+</vector>

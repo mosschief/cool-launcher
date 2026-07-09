@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Day palette: mirrors the rice — background / accent / foreground -->
+<resources>
+    <color name="bg">#f2f1e5</color>
+    <color name="accent">#deddd1</color>
+    <color name="fg">#000000</color>
+    <color name="muted">#888888</color>
+</resources>

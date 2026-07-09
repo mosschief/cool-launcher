@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Day theme; values-night/themes.xml swaps the parent for the dark variant. -->
+    <style name="Theme.Rice" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:colorBackground">@color/bg</item>
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:navigationBarColor">@color/bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:textColorPrimary">@color/fg</item>
+        <item name="android:textColorSecondary">@color/muted</item>
+        <item name="android:colorAccent">@color/fg</item>
+        <item name="android:colorControlActivated">@color/fg</item>
+        <item name="android:colorControlNormal">@color/muted</item>
+        <item name="android:colorControlHighlight">@color/accent</item>
+        <item name="android:fontFamily">@font/iosevka</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+</resources>
