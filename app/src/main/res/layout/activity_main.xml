@@ -19,6 +19,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:fontFamily="@font/iosevka"
             android:textSize="14sp"
             android:textColor="@color/fg" />
 
@@ -26,6 +27,7 @@
             android:id="@+id/battery"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:fontFamily="@font/iosevka"
             android:textSize="14sp"
             android:textColor="@color/fg" />
     </LinearLayout>
@@ -42,6 +44,7 @@
         android:paddingHorizontal="14dp"
         android:paddingVertical="12dp"
         android:background="@android:color/transparent"
+        android:fontFamily="@font/iosevka"
         android:hint="@string/search_hint"
         android:textColorHint="@color/muted"
         android:textColor="@color/fg"

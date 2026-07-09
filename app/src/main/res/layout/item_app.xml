@@ -6,6 +6,7 @@
     android:paddingHorizontal="14dp"
     android:paddingVertical="12dp"
     android:background="@drawable/row_bg"
+    android:fontFamily="@font/iosevka"
     android:textColor="@color/fg"
     android:textSize="16sp"
     android:maxLines="1"
