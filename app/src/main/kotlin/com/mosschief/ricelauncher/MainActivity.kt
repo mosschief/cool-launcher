@@ -229,40 +229,53 @@ class MainActivity : Activity() {
         resetSearch()
     }
 
+    // App enumeration is binder-heavy (every label, every profile), so it
+    // runs off the UI thread: the previous list stays on screen and the
+    // fresh one is swapped in when ready. Home press never blocks on it.
+    private var loadGeneration = 0
+
     private fun loadApps() {
-        // LauncherApps sees every profile (personal + work), unlike
-        // PackageManager which only queries the profile we run in.
-        val myUser = Process.myUserHandle()
-        allApps.clear()
-        for (profile in userManager.userProfiles) {
-            val isWork = profile != myUser
-            for (info in launcherApps.getActivityList(null, profile)) {
-                val pkg = info.applicationInfo.packageName
-                if (pkg == packageName) continue
-                val label = info.label.toString()
-                // Personal-profile keys keep the old format so existing
-                // recency data survives the upgrade.
-                val key = if (isWork) {
-                    "$pkg/${info.name}:u${userManager.getSerialNumberForUser(profile)}"
-                } else {
-                    "$pkg/${info.name}"
+        val generation = ++loadGeneration
+        Thread {
+            // LauncherApps sees every profile (personal + work), unlike
+            // PackageManager which only queries the profile we run in.
+            val myUser = Process.myUserHandle()
+            val newApps = mutableListOf<AppEntry>()
+            for (profile in userManager.userProfiles) {
+                val isWork = profile != myUser
+                for (info in launcherApps.getActivityList(null, profile)) {
+                    val pkg = info.applicationInfo.packageName
+                    if (pkg == packageName) continue
+                    val label = info.label.toString()
+                    // Personal-profile keys keep the old format so existing
+                    // recency data survives the upgrade.
+                    val key = if (isWork) {
+                        "$pkg/${info.name}:u${userManager.getSerialNumberForUser(profile)}"
+                    } else {
+                        "$pkg/${info.name}"
+                    }
+                    newApps.add(AppEntry(
+                        label = if (isWork) "$label (Work)" else label,
+                        packageName = pkg,
+                        activityName = info.name,
+                        user = profile,
+                        key = key,
+                    ))
                 }
-                allApps.add(AppEntry(
-                    label = if (isWork) "$label (Work)" else label,
-                    packageName = pkg,
-                    activityName = info.name,
-                    user = profile,
-                    key = key,
-                ))
             }
-        }
-        // Most recently launched first; never-launched apps alphabetical below.
-        allApps.sortWith(
-            compareByDescending<AppEntry> { recents.getLong(it.key, 0L) }
-                .thenBy { it.labelLower }
-        )
-        pruneRecents()
-        applyFilter()
+            // Most recently launched first; never-launched apps alphabetical below.
+            newApps.sortWith(
+                compareByDescending<AppEntry> { recents.getLong(it.key, 0L) }
+                    .thenBy { it.labelLower }
+            )
+            pruneRecents(newApps)
+            runOnUiThread {
+                if (generation != loadGeneration) return@runOnUiThread
+                allApps.clear()
+                allApps.addAll(newApps)
+                applyFilter()
+            }
+        }.start()
     }
 
     private fun applyFilter() {
@@ -530,8 +543,8 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun pruneRecents() {
-        val installed = allApps.mapTo(HashSet()) { it.key }
+    private fun pruneRecents(apps: List<AppEntry>) {
+        val installed = apps.mapTo(HashSet()) { it.key }
         val editor = recents.edit()
         var dirty = false
         for (key in recents.all.keys) {
