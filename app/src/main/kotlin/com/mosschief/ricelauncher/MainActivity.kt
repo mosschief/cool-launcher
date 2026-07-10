@@ -383,8 +383,8 @@ class MainActivity : Activity() {
     // permission is needed. Cached; refreshed at most every 30 minutes.
     // Long-press the weather slot to force a refresh with error feedback.
     private fun refreshWeather(force: Boolean = false, notify: Boolean = false) {
-        weatherView.text = status.getString("weather_text", "") ?: ""
-        val age = System.currentTimeMillis() - status.getLong("weather_ts", 0L)
+        weatherView.text = status.getString("weather_text_f", "") ?: ""
+        val age = System.currentTimeMillis() - status.getLong("weather_ts_f", 0L)
         if (!force && age < WEATHER_MAX_AGE_MS) return
         Thread {
             try {
@@ -393,14 +393,15 @@ class MainActivity : Activity() {
                 val json = JSONObject(
                     httpGet(
                         "https://api.open-meteo.com/v1/forecast" +
-                            "?latitude=$lat&longitude=$lon&current_weather=true"
+                            "?latitude=$lat&longitude=$lon&current_weather=true" +
+                            "&temperature_unit=fahrenheit"
                     )
                 ).getJSONObject("current_weather")
                 val temp = json.getDouble("temperature").roundToInt()
                 val text = "$temp° ${weatherWord(json.getInt("weathercode"))}".trim()
                 status.edit()
-                    .putString("weather_text", text)
-                    .putLong("weather_ts", System.currentTimeMillis())
+                    .putString("weather_text_f", text)
+                    .putLong("weather_ts_f", System.currentTimeMillis())
                     .apply()
                 runOnUiThread { weatherView.text = text }
             } catch (e: Exception) {
