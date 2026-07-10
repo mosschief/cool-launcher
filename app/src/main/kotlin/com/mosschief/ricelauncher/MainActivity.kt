@@ -1,9 +1,13 @@
 package com.mosschief.ricelauncher
 
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.net.Uri
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -15,12 +19,16 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.BaseAdapter
 import android.widget.EditText
 import android.widget.ListView
 import android.widget.TextView
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : Activity() {
 
@@ -44,10 +52,26 @@ class MainActivity : Activity() {
     private val allApps = mutableListOf<AppEntry>()
     private val shownApps = mutableListOf<AppEntry>()
 
+    private lateinit var clockView: TextView
+    private lateinit var batteryView: TextView
     private lateinit var searchView: EditText
     private lateinit var listView: ListView
     private lateinit var recents: SharedPreferences
     private lateinit var swipeDetector: GestureDetector
+
+    private val timeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = updateClock()
+    }
+
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+            if (level >= 0 && scale > 0) {
+                batteryView.text = "${level * 100 / scale}%"
+            }
+        }
+    }
 
     private val adapter = object : BaseAdapter() {
         override fun getCount() = shownApps.size
@@ -66,6 +90,8 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        clockView = findViewById(R.id.clock)
+        batteryView = findViewById(R.id.battery)
         searchView = findViewById(R.id.search)
         listView = findViewById(R.id.app_list)
         recents = getSharedPreferences("recents", MODE_PRIVATE)
@@ -137,11 +163,25 @@ class MainActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
+        registerReceiver(timeReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_TIME_TICK)
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+        })
+        registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        updateClock()
         loadApps()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        unregisterReceiver(timeReceiver)
+        unregisterReceiver(batteryReceiver)
     }
 
     override fun onResume() {
         super.onResume()
+        hideStatusBar()
         resetSearch()
     }
 
@@ -250,11 +290,37 @@ class MainActivity : Activity() {
         )
     }
 
+    // wmenu-style: the prompt is always focused with the keyboard up,
+    // ready to type into.
     private fun resetSearch() {
         searchView.text.clear()
-        searchView.clearFocus()
-        (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager)
-            .hideSoftInputFromWindow(searchView.windowToken, 0)
+        searchView.requestFocus()
+        searchView.post {
+            (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager)
+                .showSoftInput(searchView, 0)
+        }
+    }
+
+    private fun hideStatusBar() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.let {
+                it.systemBarsBehavior =
+                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                it.hide(WindowInsets.Type.statusBars())
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                )
+        }
+    }
+
+    private fun updateClock() {
+        val fmt = SimpleDateFormat("HH:mm  EEE d MMM", Locale.getDefault())
+        clockView.text = fmt.format(Date()).lowercase()
     }
 
     private fun pruneRecents() {
