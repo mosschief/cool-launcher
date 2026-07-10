@@ -44,6 +44,8 @@ and a text-only app list sorted by most recently used.
   filter (prefix matches ranked first), Enter/Go launches the top match
   (wmenu behavior)
 - Hidden system status bar with a clock + battery row of our own
+- Work-profile apps included, shown as `appname (Work)` and launched
+  into the right profile (via `LauncherApps`)
 - Long-press a row for the system App Info screen (uninstall, etc.)
 - Fast swipe up anywhere → Firefox with the address bar focused and
   keyboard up (mimics the Firefox search widget's intent); slower swipes

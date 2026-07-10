@@ -2,15 +2,18 @@ package com.mosschief.ricelauncher
 
 import android.app.Activity
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
-import android.net.Uri
+import android.content.pm.LauncherApps
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
+import android.os.Process
+import android.os.UserHandle
+import android.os.UserManager
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.GestureDetector
@@ -44,9 +47,10 @@ class MainActivity : Activity() {
         val label: String,
         val packageName: String,
         val activityName: String,
+        val user: UserHandle,
+        val key: String,
     ) {
         val labelLower = label.lowercase()
-        val key = "$packageName/$activityName"
     }
 
     private val allApps = mutableListOf<AppEntry>()
@@ -58,6 +62,8 @@ class MainActivity : Activity() {
     private lateinit var listView: ListView
     private lateinit var recents: SharedPreferences
     private lateinit var swipeDetector: GestureDetector
+    private lateinit var launcherApps: LauncherApps
+    private lateinit var userManager: UserManager
 
     private val timeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) = updateClock()
@@ -95,6 +101,8 @@ class MainActivity : Activity() {
         searchView = findViewById(R.id.search)
         listView = findViewById(R.id.app_list)
         recents = getSharedPreferences("recents", MODE_PRIVATE)
+        launcherApps = getSystemService(LAUNCHER_APPS_SERVICE) as LauncherApps
+        userManager = getSystemService(USER_SERVICE) as UserManager
 
         // On API 30+ (and forced edge-to-edge on 35) pad the root for system bars.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -199,17 +207,31 @@ class MainActivity : Activity() {
     }
 
     private fun loadApps() {
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val resolved = packageManager.queryIntentActivities(intent, 0)
+        // LauncherApps sees every profile (personal + work), unlike
+        // PackageManager which only queries the profile we run in.
+        val myUser = Process.myUserHandle()
         allApps.clear()
-        resolved.mapNotNullTo(allApps) { info ->
-            val activity = info.activityInfo
-            if (activity.packageName == packageName) return@mapNotNullTo null
-            AppEntry(
-                label = info.loadLabel(packageManager).toString(),
-                packageName = activity.packageName,
-                activityName = activity.name,
-            )
+        for (profile in userManager.userProfiles) {
+            val isWork = profile != myUser
+            for (info in launcherApps.getActivityList(null, profile)) {
+                val pkg = info.applicationInfo.packageName
+                if (pkg == packageName) continue
+                val label = info.label.toString()
+                // Personal-profile keys keep the old format so existing
+                // recency data survives the upgrade.
+                val key = if (isWork) {
+                    "$pkg/${info.name}:u${userManager.getSerialNumberForUser(profile)}"
+                } else {
+                    "$pkg/${info.name}"
+                }
+                allApps.add(AppEntry(
+                    label = if (isWork) "$label (Work)" else label,
+                    packageName = pkg,
+                    activityName = info.name,
+                    user = profile,
+                    key = key,
+                ))
+            }
         }
         // Most recently launched first; never-launched apps alphabetical below.
         allApps.sortWith(
@@ -236,15 +258,17 @@ class MainActivity : Activity() {
     }
 
     private fun launchApp(app: AppEntry) {
-        val intent = Intent(Intent.ACTION_MAIN)
-            .addCategory(Intent.CATEGORY_LAUNCHER)
-            .setClassName(app.packageName, app.activityName)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
         try {
-            startActivity(intent)
+            launcherApps.startMainActivity(
+                ComponentName(app.packageName, app.activityName),
+                app.user,
+                null,
+                null,
+            )
             recents.edit().putLong(app.key, System.currentTimeMillis()).apply()
         } catch (e: Exception) {
-            // App may have been uninstalled since the list was built.
+            // Uninstalled since the list was built, or the work profile is
+            // paused — refresh either way.
             loadApps()
         }
     }
@@ -277,17 +301,24 @@ class MainActivity : Activity() {
                 }
             } ?: return
         }
-        // Bump Firefox in the recency list too.
-        allApps.firstOrNull { it.packageName == pkg }?.let {
+        // Bump Firefox (personal profile) in the recency list too.
+        val myUser = Process.myUserHandle()
+        allApps.firstOrNull { it.packageName == pkg && it.user == myUser }?.let {
             recents.edit().putLong(it.key, System.currentTimeMillis()).apply()
         }
     }
 
     private fun openAppInfo(app: AppEntry) {
-        startActivity(
-            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                .setData(Uri.parse("package:${app.packageName}"))
-        )
+        try {
+            launcherApps.startAppDetailsActivity(
+                ComponentName(app.packageName, app.activityName),
+                app.user,
+                null,
+                null,
+            )
+        } catch (e: Exception) {
+            // e.g. work profile paused; nothing sensible to show.
+        }
     }
 
     // wmenu-style: the prompt is always focused with the keyboard up,
