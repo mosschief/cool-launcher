@@ -31,6 +31,7 @@ import android.widget.EditText
 import android.net.Uri
 import android.widget.ListView
 import android.widget.TextView
+import android.widget.Toast
 import org.json.JSONObject
 import java.net.URL
 import java.text.SimpleDateFormat
@@ -132,6 +133,10 @@ class MainActivity : Activity() {
         timeView.setOnClickListener { openClock() }
         dateView.setOnClickListener { openCalendar() }
         weatherView.setOnClickListener { openWeather() }
+        weatherView.setOnLongClickListener {
+            refreshWeather(force = true, notify = true)
+            true
+        }
 
         listView.adapter = adapter
         listView.setOnItemClickListener { _, _, position, _ ->
@@ -376,18 +381,20 @@ class MainActivity : Activity() {
 
     // Weather: open-meteo with IP-based geolocation, so no location
     // permission is needed. Cached; refreshed at most every 30 minutes.
-    private fun refreshWeather() {
+    // Long-press the weather slot to force a refresh with error feedback.
+    private fun refreshWeather(force: Boolean = false, notify: Boolean = false) {
         weatherView.text = status.getString("weather_text", "") ?: ""
         val age = System.currentTimeMillis() - status.getLong("weather_ts", 0L)
-        if (age < WEATHER_MAX_AGE_MS) return
+        if (!force && age < WEATHER_MAX_AGE_MS) return
         Thread {
             try {
-                val (lat, lon) = locate() ?: return@Thread
+                val (lat, lon) = locate()
+                    ?: throw Exception("could not geolocate (all providers failed)")
                 val json = JSONObject(
-                    URL(
+                    httpGet(
                         "https://api.open-meteo.com/v1/forecast" +
                             "?latitude=$lat&longitude=$lon&current_weather=true"
-                    ).readText()
+                    )
                 ).getJSONObject("current_weather")
                 val temp = json.getDouble("temperature").roundToInt()
                 val text = "$temp° ${weatherWord(json.getInt("weathercode"))}".trim()
@@ -398,8 +405,30 @@ class MainActivity : Activity() {
                 runOnUiThread { weatherView.text = text }
             } catch (e: Exception) {
                 // No network or API hiccup; keep whatever is shown.
+                if (notify) {
+                    runOnUiThread {
+                        Toast.makeText(
+                            this,
+                            "weather: ${e.javaClass.simpleName}: ${e.message ?: ""}",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
             }
         }.start()
+    }
+
+    private fun httpGet(url: String): String {
+        val conn = URL(url).openConnection() as java.net.HttpURLConnection
+        conn.connectTimeout = 8000
+        conn.readTimeout = 8000
+        // Some IP-geo providers reject the default Java/Dalvik user agent.
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Android) rice-launcher")
+        try {
+            return conn.inputStream.bufferedReader().readText()
+        } finally {
+            conn.disconnect()
+        }
     }
 
     private fun locate(): Pair<Double, Double>? {
@@ -409,23 +438,29 @@ class MainActivity : Activity() {
         if (age < LOCATION_MAX_AGE_MS && cachedLat != null && cachedLon != null) {
             return cachedLat.toDouble() to cachedLon.toDouble()
         }
-        return try {
-            val json = JSONObject(URL("https://ipapi.co/json/").readText())
-            val lat = json.getDouble("latitude")
-            val lon = json.getDouble("longitude")
-            status.edit()
-                .putString("loc_lat", lat.toString())
-                .putString("loc_lon", lon.toString())
-                .putLong("loc_ts", System.currentTimeMillis())
-                .apply()
-            lat to lon
-        } catch (e: Exception) {
-            // Fall back to a stale cached location if we have one.
-            if (cachedLat != null && cachedLon != null) {
-                cachedLat.toDouble() to cachedLon.toDouble()
-            } else {
-                null
+        val providers = listOf("https://ipwho.is/", "https://ipapi.co/json/", "https://ifconfig.co/json")
+        for (provider in providers) {
+            try {
+                val json = JSONObject(httpGet(provider))
+                if (!json.optBoolean("success", true)) continue
+                val lat = json.optDouble("latitude")
+                val lon = json.optDouble("longitude")
+                if (lat.isNaN() || lon.isNaN()) continue
+                status.edit()
+                    .putString("loc_lat", lat.toString())
+                    .putString("loc_lon", lon.toString())
+                    .putLong("loc_ts", System.currentTimeMillis())
+                    .apply()
+                return lat to lon
+            } catch (e: Exception) {
+                continue
             }
+        }
+        // Fall back to a stale cached location if we have one.
+        return if (cachedLat != null && cachedLon != null) {
+            cachedLat.toDouble() to cachedLon.toDouble()
+        } else {
+            null
         }
     }
 
