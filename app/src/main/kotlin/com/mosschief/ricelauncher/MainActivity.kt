@@ -9,7 +9,9 @@ import android.os.Bundle
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.GestureDetector
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
@@ -21,6 +23,14 @@ import android.widget.ListView
 import android.widget.TextView
 
 class MainActivity : Activity() {
+
+    companion object {
+        private val FIREFOX_PACKAGES = listOf(
+            "org.mozilla.firefox",
+            "org.mozilla.firefox_beta",
+            "org.mozilla.fenix",
+        )
+    }
 
     private data class AppEntry(
         val label: String,
@@ -37,6 +47,7 @@ class MainActivity : Activity() {
     private lateinit var searchView: EditText
     private lateinit var listView: ListView
     private lateinit var recents: SharedPreferences
+    private lateinit var swipeDetector: GestureDetector
 
     private val adapter = object : BaseAdapter() {
         override fun getCount() = shownApps.size
@@ -93,6 +104,35 @@ class MainActivity : Activity() {
                 false
             }
         }
+
+        // Fast, steep upward flick anywhere → Firefox. Thresholds are set well
+        // above normal list-scroll flings so scrolling is unaffected.
+        val density = resources.displayMetrics.density
+        val minVelocity = 2500f * density
+        val minTravel = resources.displayMetrics.heightPixels * 0.15f
+        swipeDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(
+                e1: MotionEvent?,
+                e2: MotionEvent,
+                velocityX: Float,
+                velocityY: Float,
+            ): Boolean {
+                val travel = (e1?.y ?: return false) - e2.y
+                if (velocityY < -minVelocity &&
+                    travel > minTravel &&
+                    -velocityY > 2 * kotlin.math.abs(velocityX)
+                ) {
+                    launchFirefox()
+                    return true
+                }
+                return false
+            }
+        })
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        swipeDetector.onTouchEvent(ev)
+        return super.dispatchTouchEvent(ev)
     }
 
     override fun onStart() {
@@ -166,6 +206,40 @@ class MainActivity : Activity() {
         } catch (e: Exception) {
             // App may have been uninstalled since the list was built.
             loadApps()
+        }
+    }
+
+    private fun launchFirefox() {
+        val pkg = FIREFOX_PACKAGES.firstOrNull { p ->
+            try {
+                packageManager.getPackageInfo(p, 0)
+                true
+            } catch (e: Exception) {
+                false
+            }
+        } ?: return
+
+        // Mimic the Firefox search widget's intent: opens with the address bar
+        // focused and the keyboard up (StartSearchIntentProcessor in Fenix).
+        val searchIntent = Intent()
+            .setClassName(pkg, "org.mozilla.fenix.IntentReceiverActivity")
+            .putExtra("open_to_search", "search_widget")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            startActivity(searchIntent)
+        } catch (e: Exception) {
+            // Fenix internals changed or activity unavailable: plain launch.
+            packageManager.getLaunchIntentForPackage(pkg)?.let {
+                try {
+                    startActivity(it)
+                } catch (e: Exception) {
+                    return
+                }
+            } ?: return
+        }
+        // Bump Firefox in the recency list too.
+        allApps.firstOrNull { it.packageName == pkg }?.let {
+            recents.edit().putLong(it.key, System.currentTimeMillis()).apply()
         }
     }
 

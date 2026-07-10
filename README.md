@@ -39,6 +39,9 @@ used first. No clock or battery — Android's status bar already has both.
 - Type-to-filter with prefix matches ranked first; Enter/Go launches the
   top match (wmenu behavior)
 - Long-press a row for the system App Info screen (uninstall, etc.)
+- Fast swipe up anywhere → Firefox with the address bar focused and
+  keyboard up (mimics the Firefox search widget's intent); slower swipes
+  scroll the list as usual
 - Follows system dark mode via `values-night` resources
 - Zero dependencies: no AndroidX, no libraries — framework `Activity` +
   `ListView` only. minSdk 26, targetSdk 35.
