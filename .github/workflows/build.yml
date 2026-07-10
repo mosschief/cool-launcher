@@ -30,10 +30,15 @@ jobs:
           name: rice-launcher-debug
           path: rice-launcher-debug.apk
 
-      - name: Attach APK to rolling "latest" release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest
-          name: latest debug build
-          prerelease: true
-          files: rice-launcher-debug.apk
+      # Direct-download link for phones: push the APK to an orphan 'apk' branch,
+      # served at https://github.com/<repo>/raw/apk/rice-launcher-debug.apk
+      - name: Publish APK to apk branch
+        run: |
+          mkdir /tmp/apkpub && cd /tmp/apkpub
+          git init -q -b apk
+          cp "$GITHUB_WORKSPACE/rice-launcher-debug.apk" .
+          git add rice-launcher-debug.apk
+          git -c user.name=github-actions -c user.email=actions@users.noreply.github.com \
+              commit -q -m "debug build ${GITHUB_SHA::7}"
+          git push --force \
+            "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" apk
