@@ -5,16 +5,14 @@ A minimal, text-only Android launcher in the same design language as my
 font, zero decoration.
 
 ```
-14:32  thu 9 jul                          87%
-─────────────────────────────────────────────
 run…
 ─────────────────────────────────────────────
-calculator
-camera
-clock
 firefox
 messages
 obsidian
+calculator
+camera
+clock
 …
 ```
 
@@ -31,16 +29,16 @@ Same palette as the desktop, following the system light/dark setting
 | Muted      | `#888888` | `#888888` | hint text                    |
 
 Flat everywhere: no icons, no ripples, no rounded corners, no shadows.
-A waybar-style status row (clock left, battery right), a wmenu-style
-`run…` prompt, and an alphabetical app list.
+A wmenu-style `run…` prompt and a text-only app list, most recently
+used first. No clock or battery — Android's status bar already has both.
 
 ## Features
 
-- Text-only alphabetical list of launchable apps — tap to launch
+- Text-only list of launchable apps, most recently launched first
+  (never-launched apps alphabetical below); tap to launch
 - Type-to-filter with prefix matches ranked first; Enter/Go launches the
   top match (wmenu behavior)
 - Long-press a row for the system App Info screen (uninstall, etc.)
-- Clock + date + battery status row
 - Follows system dark mode via `values-night` resources
 - Zero dependencies: no AndroidX, no libraries — framework `Activity` +
   `ListView` only. minSdk 26, targetSdk 35.
@@ -70,4 +68,4 @@ Then press Home and pick **rice** as the default launcher.
 - `app/src/main/kotlin/.../MainActivity.kt` — the whole launcher (one file)
 - `app/src/main/res/values/colors.xml` / `values-night/colors.xml` — the palette
 - `app/src/main/res/values/themes.xml` — flat Material theme overrides
-- `app/src/main/res/layout/` — status row + search + list
+- `app/src/main/res/layout/` — search prompt + list

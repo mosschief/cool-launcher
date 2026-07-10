@@ -1,12 +1,9 @@
 package com.mosschief.ricelauncher
 
 import android.app.Activity
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.net.Uri
-import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -22,9 +19,6 @@ import android.widget.BaseAdapter
 import android.widget.EditText
 import android.widget.ListView
 import android.widget.TextView
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class MainActivity : Activity() {
 
@@ -34,15 +28,15 @@ class MainActivity : Activity() {
         val activityName: String,
     ) {
         val labelLower = label.lowercase()
+        val key = "$packageName/$activityName"
     }
 
     private val allApps = mutableListOf<AppEntry>()
     private val shownApps = mutableListOf<AppEntry>()
 
-    private lateinit var clockView: TextView
-    private lateinit var batteryView: TextView
     private lateinit var searchView: EditText
     private lateinit var listView: ListView
+    private lateinit var recents: SharedPreferences
 
     private val adapter = object : BaseAdapter() {
         override fun getCount() = shownApps.size
@@ -57,28 +51,13 @@ class MainActivity : Activity() {
         }
     }
 
-    private val timeReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) = updateClock()
-    }
-
-    private val batteryReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
-            if (level >= 0 && scale > 0) {
-                batteryView.text = "${level * 100 / scale}%"
-            }
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        clockView = findViewById(R.id.clock)
-        batteryView = findViewById(R.id.battery)
         searchView = findViewById(R.id.search)
         listView = findViewById(R.id.app_list)
+        recents = getSharedPreferences("recents", MODE_PRIVATE)
 
         // On API 30+ (and forced edge-to-edge on 35) pad the root for system bars.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -118,20 +97,7 @@ class MainActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
-        registerReceiver(timeReceiver, IntentFilter().apply {
-            addAction(Intent.ACTION_TIME_TICK)
-            addAction(Intent.ACTION_TIME_CHANGED)
-            addAction(Intent.ACTION_TIMEZONE_CHANGED)
-        })
-        registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        updateClock()
         loadApps()
-    }
-
-    override fun onStop() {
-        super.onStop()
-        unregisterReceiver(timeReceiver)
-        unregisterReceiver(batteryReceiver)
     }
 
     override fun onResume() {
@@ -165,7 +131,12 @@ class MainActivity : Activity() {
                 activityName = activity.name,
             )
         }
-        allApps.sortBy { it.labelLower }
+        // Most recently launched first; never-launched apps alphabetical below.
+        allApps.sortWith(
+            compareByDescending<AppEntry> { recents.getLong(it.key, 0L) }
+                .thenBy { it.labelLower }
+        )
+        pruneRecents()
         applyFilter()
     }
 
@@ -191,6 +162,7 @@ class MainActivity : Activity() {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
         try {
             startActivity(intent)
+            recents.edit().putLong(app.key, System.currentTimeMillis()).apply()
         } catch (e: Exception) {
             // App may have been uninstalled since the list was built.
             loadApps()
@@ -211,8 +183,16 @@ class MainActivity : Activity() {
             .hideSoftInputFromWindow(searchView.windowToken, 0)
     }
 
-    private fun updateClock() {
-        val fmt = SimpleDateFormat("HH:mm  EEE d MMM", Locale.getDefault())
-        clockView.text = fmt.format(Date()).lowercase()
+    private fun pruneRecents() {
+        val installed = allApps.mapTo(HashSet()) { it.key }
+        val editor = recents.edit()
+        var dirty = false
+        for (key in recents.all.keys) {
+            if (key !in installed) {
+                editor.remove(key)
+                dirty = true
+            }
+        }
+        if (dirty) editor.apply()
     }
 }
