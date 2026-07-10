@@ -6,7 +6,7 @@
     android:orientation="vertical"
     android:background="@color/bg">
 
-    <!-- status row: clock left, battery right — replaces the hidden system bar -->
+    <!-- status row: time/date left, weather + battery right — our waybar -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -15,10 +15,35 @@
         android:paddingVertical="10dp">
 
         <TextView
-            android:id="@+id/clock"
-            android:layout_width="0dp"
+            android:id="@+id/time"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:background="@drawable/row_bg"
+            android:fontFamily="@font/iosevka"
+            android:textSize="14sp"
+            android:textColor="@color/fg" />
+
+        <TextView
+            android:id="@+id/date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/row_bg"
+            android:fontFamily="@font/iosevka"
+            android:textSize="14sp"
+            android:textColor="@color/fg" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:id="@+id/weather"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:background="@drawable/row_bg"
             android:fontFamily="@font/iosevka"
             android:textSize="14sp"
             android:textColor="@color/fg" />

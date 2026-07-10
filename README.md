@@ -5,7 +5,7 @@ A minimal, text-only Android launcher in the same design language as my
 font, zero decoration.
 
 ```
-14:32  thu 9 jul                          87%
+14:32  thu 9 jul              6° cloudy  87%
 ─────────────────────────────────────────────
 run…
 ─────────────────────────────────────────────
@@ -43,7 +43,11 @@ and a text-only app list sorted by most recently used.
 - The `run…` prompt is auto-focused with the keyboard up — type to
   filter (prefix matches ranked first), Enter/Go launches the top match
   (wmenu behavior)
-- Hidden system status bar with a clock + battery row of our own
+- Hidden system status bar with a clock/date/weather/battery row of our
+  own; tap the time for the clock app, the date for the calendar, the
+  weather for the weather app
+- Weather via open-meteo with IP geolocation — no API key, no location
+  permission; cached and refreshed at most every 30 minutes
 - Work-profile apps included, shown as `appname (Work)` and launched
   into the right profile (via `LauncherApps`)
 - Long-press a row for the system App Info screen (uninstall, etc.)

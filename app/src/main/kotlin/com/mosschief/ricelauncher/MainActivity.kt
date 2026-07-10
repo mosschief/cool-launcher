@@ -14,6 +14,7 @@ import android.os.Bundle
 import android.os.Process
 import android.os.UserHandle
 import android.os.UserManager
+import android.provider.AlarmClock
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.GestureDetector
@@ -27,11 +28,15 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.BaseAdapter
 import android.widget.EditText
+import android.net.Uri
 import android.widget.ListView
 import android.widget.TextView
+import org.json.JSONObject
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 class MainActivity : Activity() {
 
@@ -41,6 +46,8 @@ class MainActivity : Activity() {
             "org.mozilla.firefox_beta",
             "org.mozilla.fenix",
         )
+        private const val WEATHER_MAX_AGE_MS = 30 * 60 * 1000L
+        private const val LOCATION_MAX_AGE_MS = 24 * 60 * 60 * 1000L
     }
 
     private data class AppEntry(
@@ -56,11 +63,14 @@ class MainActivity : Activity() {
     private val allApps = mutableListOf<AppEntry>()
     private val shownApps = mutableListOf<AppEntry>()
 
-    private lateinit var clockView: TextView
+    private lateinit var timeView: TextView
+    private lateinit var dateView: TextView
+    private lateinit var weatherView: TextView
     private lateinit var batteryView: TextView
     private lateinit var searchView: EditText
     private lateinit var listView: ListView
     private lateinit var recents: SharedPreferences
+    private lateinit var status: SharedPreferences
     private lateinit var swipeDetector: GestureDetector
     private lateinit var launcherApps: LauncherApps
     private lateinit var userManager: UserManager
@@ -96,11 +106,14 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        clockView = findViewById(R.id.clock)
+        timeView = findViewById(R.id.time)
+        dateView = findViewById(R.id.date)
+        weatherView = findViewById(R.id.weather)
         batteryView = findViewById(R.id.battery)
         searchView = findViewById(R.id.search)
         listView = findViewById(R.id.app_list)
         recents = getSharedPreferences("recents", MODE_PRIVATE)
+        status = getSharedPreferences("status", MODE_PRIVATE)
         launcherApps = getSystemService(LAUNCHER_APPS_SERVICE) as LauncherApps
         userManager = getSystemService(USER_SERVICE) as UserManager
 
@@ -115,6 +128,10 @@ class MainActivity : Activity() {
                 WindowInsets.CONSUMED
             }
         }
+
+        timeView.setOnClickListener { openClock() }
+        dateView.setOnClickListener { openCalendar() }
+        weatherView.setOnClickListener { openWeather() }
 
         listView.adapter = adapter
         listView.setOnItemClickListener { _, _, position, _ ->
@@ -178,6 +195,7 @@ class MainActivity : Activity() {
         })
         registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         updateClock()
+        refreshWeather()
         loadApps()
     }
 
@@ -350,8 +368,130 @@ class MainActivity : Activity() {
     }
 
     private fun updateClock() {
-        val fmt = SimpleDateFormat("HH:mm  EEE d MMM", Locale.getDefault())
-        clockView.text = fmt.format(Date()).lowercase()
+        val now = Date()
+        timeView.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(now)
+        dateView.text = SimpleDateFormat("EEE d MMM", Locale.getDefault())
+            .format(now).lowercase()
+    }
+
+    // Weather: open-meteo with IP-based geolocation, so no location
+    // permission is needed. Cached; refreshed at most every 30 minutes.
+    private fun refreshWeather() {
+        weatherView.text = status.getString("weather_text", "") ?: ""
+        val age = System.currentTimeMillis() - status.getLong("weather_ts", 0L)
+        if (age < WEATHER_MAX_AGE_MS) return
+        Thread {
+            try {
+                val (lat, lon) = locate() ?: return@Thread
+                val json = JSONObject(
+                    URL(
+                        "https://api.open-meteo.com/v1/forecast" +
+                            "?latitude=$lat&longitude=$lon&current_weather=true"
+                    ).readText()
+                ).getJSONObject("current_weather")
+                val temp = json.getDouble("temperature").roundToInt()
+                val text = "$temp° ${weatherWord(json.getInt("weathercode"))}".trim()
+                status.edit()
+                    .putString("weather_text", text)
+                    .putLong("weather_ts", System.currentTimeMillis())
+                    .apply()
+                runOnUiThread { weatherView.text = text }
+            } catch (e: Exception) {
+                // No network or API hiccup; keep whatever is shown.
+            }
+        }.start()
+    }
+
+    private fun locate(): Pair<Double, Double>? {
+        val age = System.currentTimeMillis() - status.getLong("loc_ts", 0L)
+        val cachedLat = status.getString("loc_lat", null)
+        val cachedLon = status.getString("loc_lon", null)
+        if (age < LOCATION_MAX_AGE_MS && cachedLat != null && cachedLon != null) {
+            return cachedLat.toDouble() to cachedLon.toDouble()
+        }
+        return try {
+            val json = JSONObject(URL("https://ipapi.co/json/").readText())
+            val lat = json.getDouble("latitude")
+            val lon = json.getDouble("longitude")
+            status.edit()
+                .putString("loc_lat", lat.toString())
+                .putString("loc_lon", lon.toString())
+                .putLong("loc_ts", System.currentTimeMillis())
+                .apply()
+            lat to lon
+        } catch (e: Exception) {
+            // Fall back to a stale cached location if we have one.
+            if (cachedLat != null && cachedLon != null) {
+                cachedLat.toDouble() to cachedLon.toDouble()
+            } else {
+                null
+            }
+        }
+    }
+
+    private fun weatherWord(code: Int) = when (code) {
+        0, 1 -> "clear"
+        2 -> "cloudy"
+        3 -> "overcast"
+        45, 48 -> "fog"
+        in 51..57 -> "drizzle"
+        in 61..67, in 80..82 -> "rain"
+        in 71..77, 85, 86 -> "snow"
+        in 95..99 -> "storm"
+        else -> ""
+    }
+
+    private fun openClock() {
+        try {
+            startActivity(
+                Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun openCalendar() {
+        try {
+            startActivity(
+                packageManager.getLaunchIntentForPackage("com.google.android.calendar")
+                    ?: Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("content://com.android.calendar/time/"),
+                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun openWeather() {
+        // Pixel Weather app, then the Google app's weather screen, then a
+        // browser search as a last resort.
+        try {
+            packageManager.getLaunchIntentForPackage("com.google.android.apps.weather")?.let {
+                startActivity(it)
+                return
+            }
+        } catch (e: Exception) {
+        }
+        try {
+            startActivity(
+                Intent()
+                    .setClassName(
+                        "com.google.android.googlequicksearchbox",
+                        "com.google.android.apps.search.weather.WeatherExportedActivity",
+                    )
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+            return
+        } catch (e: Exception) {
+        }
+        try {
+            startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=weather"))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (e: Exception) {
+        }
     }
 
     private fun pruneRecents() {

@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Weather fetch (open-meteo + IP geolocation); no location permission -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Needed on API 30+ to enumerate launchable apps -->
     <queries>
         <intent>
@@ -10,6 +13,16 @@
         <package android:name="org.mozilla.firefox" />
         <package android:name="org.mozilla.firefox_beta" />
         <package android:name="org.mozilla.fenix" />
+        <package android:name="com.google.android.apps.weather" />
+        <package android:name="com.google.android.googlequicksearchbox" />
+        <package android:name="com.google.android.calendar" />
+        <intent>
+            <action android:name="android.intent.action.SHOW_ALARMS" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="content" android:host="com.android.calendar" />
+        </intent>
     </queries>
 
     <application
