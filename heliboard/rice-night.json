@@ -1,0 +1,46 @@
+{
+  "name": "rice-night",
+  "moreColors": 1,
+  "colors": {
+    "background": {
+      "first": -14935274,
+      "second": false
+    },
+    "keys": {
+      "first": -14935274,
+      "second": false
+    },
+    "functional_keys": {
+      "first": -13751002,
+      "second": false
+    },
+    "spacebar": {
+      "first": -13751002,
+      "second": false
+    },
+    "text": {
+      "first": -855579,
+      "second": false
+    },
+    "suggestion_text": {
+      "first": -855579,
+      "second": false
+    },
+    "spacebar_text": {
+      "first": -7829368,
+      "second": false
+    },
+    "hint_text": {
+      "first": -7829368,
+      "second": false
+    },
+    "accent": {
+      "first": -855579,
+      "second": false
+    },
+    "gesture": {
+      "first": -855579,
+      "second": false
+    }
+  }
+}

@@ -65,6 +65,14 @@ app/src/main/res/font/iosevka_regular.ttf
 app/src/main/res/font/iosevka_bold.ttf
 ```
 
+## Matching keyboard (HeliBoard)
+
+[HeliBoard](https://github.com/Helium314/HeliBoard) themes with the rice
+palette are in `heliboard/`: `rice-day.json` and `rice-night.json`.
+Import them in HeliBoard: Settings → Appearance → Theme → adjust colors
+(day/night respectively) → `…` menu → load from file. Turn off key
+borders for the flattest look.
+
 ## Build
 
 ```

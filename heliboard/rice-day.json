@@ -1,0 +1,46 @@
+{
+  "name": "rice-day",
+  "moreColors": 1,
+  "colors": {
+    "background": {
+      "first": -855579,
+      "second": false
+    },
+    "keys": {
+      "first": -855579,
+      "second": false
+    },
+    "functional_keys": {
+      "first": -2171439,
+      "second": false
+    },
+    "spacebar": {
+      "first": -2171439,
+      "second": false
+    },
+    "text": {
+      "first": -16777216,
+      "second": false
+    },
+    "suggestion_text": {
+      "first": -16777216,
+      "second": false
+    },
+    "spacebar_text": {
+      "first": -7829368,
+      "second": false
+    },
+    "hint_text": {
+      "first": -7829368,
+      "second": false
+    },
+    "accent": {
+      "first": -16777216,
+      "second": false
+    },
+    "gesture": {
+      "first": -16777216,
+      "second": false
+    }
+  }
+}
