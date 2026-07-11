@@ -1,5 +1,6 @@
 package com.mosschief.ricelauncher
 
+import android.Manifest
 import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.ComponentName
@@ -8,6 +9,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.LauncherApps
+import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
@@ -136,10 +139,17 @@ class MainActivity : Activity() {
             }
         }
 
+        if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), 1)
+        }
+
         timeView.setOnClickListener { openClock() }
         dateView.setOnClickListener { openCalendar() }
         weatherView.setOnClickListener { openWeather() }
         weatherView.setOnLongClickListener {
+            Toast.makeText(this, "weather: refreshing…", Toast.LENGTH_SHORT).show()
             refreshWeather(force = true, notify = true)
             true
         }
@@ -190,6 +200,15 @@ class MainActivity : Activity() {
                 return false
             }
         })
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        refreshWeather(force = true)
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
@@ -408,12 +427,12 @@ class MainActivity : Activity() {
         weatherView.text = status.getString("weather_text_f", "") ?: ""
         val age = System.currentTimeMillis() - status.getLong("weather_ts_f", 0L)
         if (!force && age < WEATHER_MAX_AGE_MS) return
-        if (weatherFetching) return
+        if (!force && weatherFetching) return
         weatherFetching = true
         Thread {
             try {
-                val (lat, lon) = locate()
-                    ?: throw Exception("could not geolocate (all providers failed)")
+                val (lat, lon, src) = locate()
+                    ?: throw Exception("could not geolocate (no permission, all providers failed)")
                 val json = JSONObject(
                     httpGet(
                         "https://api.open-meteo.com/v1/forecast" +
@@ -427,7 +446,16 @@ class MainActivity : Activity() {
                     .putString("weather_text_f", text)
                     .putLong("weather_ts_f", System.currentTimeMillis())
                     .apply()
-                runOnUiThread { weatherView.text = text }
+                runOnUiThread {
+                    weatherView.text = text
+                    if (notify) {
+                        Toast.makeText(
+                            this,
+                            "weather: $text @ %.2f,%.2f ($src)".format(lat, lon),
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
             } catch (e: Exception) {
                 // No network or API hiccup; keep whatever is shown.
                 if (notify) {
@@ -458,12 +486,17 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun locate(): Pair<Double, Double>? {
+    private fun locate(): Triple<Double, Double, String>? {
+        // The device's own coarse location is far more accurate than IP
+        // geolocation on cellular (carrier IPs often resolve to a hub city
+        // hundreds of km away). Free and instant when available.
+        deviceLocation()?.let { return Triple(it.first, it.second, "device") }
+
         val age = System.currentTimeMillis() - status.getLong("loc_ts", 0L)
         val cachedLat = status.getString("loc_lat", null)
         val cachedLon = status.getString("loc_lon", null)
         if (age < LOCATION_MAX_AGE_MS && cachedLat != null && cachedLon != null) {
-            return cachedLat.toDouble() to cachedLon.toDouble()
+            return Triple(cachedLat.toDouble(), cachedLon.toDouble(), "ip-cache")
         }
         val providers = listOf("https://ipwho.is/", "https://ipapi.co/json/", "https://ifconfig.co/json")
         for (provider in providers) {
@@ -478,17 +511,40 @@ class MainActivity : Activity() {
                     .putString("loc_lon", lon.toString())
                     .putLong("loc_ts", System.currentTimeMillis())
                     .apply()
-                return lat to lon
+                return Triple(lat, lon, "ip")
             } catch (e: Exception) {
                 continue
             }
         }
         // Fall back to a stale cached location if we have one.
         return if (cachedLat != null && cachedLon != null) {
-            cachedLat.toDouble() to cachedLon.toDouble()
+            Triple(cachedLat.toDouble(), cachedLon.toDouble(), "ip-stale")
         } else {
             null
         }
+    }
+
+    private fun deviceLocation(): Pair<Double, Double>? {
+        if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return null
+        }
+        val lm = getSystemService(LOCATION_SERVICE) as LocationManager
+        for (provider in listOf(
+            LocationManager.NETWORK_PROVIDER,
+            LocationManager.PASSIVE_PROVIDER,
+            LocationManager.GPS_PROVIDER,
+        )) {
+            try {
+                lm.getLastKnownLocation(provider)?.let {
+                    return it.latitude to it.longitude
+                }
+            } catch (e: Exception) {
+                continue
+            }
+        }
+        return null
     }
 
     private fun weatherWord(code: Int) = when (code) {

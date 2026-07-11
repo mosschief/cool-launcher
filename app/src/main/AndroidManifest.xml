@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Weather fetch (open-meteo + IP geolocation); no location permission -->
+    <!-- Weather fetch (open-meteo). Coarse location gives an accurate
+         reading; if denied, falls back to IP geolocation (inaccurate on
+         cellular — carrier IPs often resolve to a distant hub city). -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <!-- Needed on API 30+ to enumerate launchable apps -->
     <queries>

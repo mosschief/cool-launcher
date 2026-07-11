@@ -46,8 +46,9 @@ and a text-only app list sorted by most recently used.
 - Hidden system status bar with a clock/date/weather/battery row of our
   own; tap the time for the clock app, the date for the calendar, the
   weather for the weather app
-- Weather via open-meteo with IP geolocation — no API key, no location
-  permission; cached and refreshed at most every 30 minutes
+- Weather via open-meteo using the device's coarse location (one-time
+  permission; IP geolocation fallback if denied); cached, refreshed
+  every 30 minutes while visible, long-press to force
 - Work-profile apps included, shown as `appname (Work)` and launched
   into the right profile (via `LauncherApps`)
 - Long-press a row for the system App Info screen (uninstall, etc.)
