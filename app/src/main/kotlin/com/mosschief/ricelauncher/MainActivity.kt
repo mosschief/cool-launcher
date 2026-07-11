@@ -77,7 +77,13 @@ class MainActivity : Activity() {
     private lateinit var userManager: UserManager
 
     private val timeReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) = updateClock()
+        override fun onReceive(context: Context, intent: Intent) {
+            updateClock()
+            // Piggyback the weather staleness check on the minute tick, so
+            // the reading refreshes while the launcher stays visible and
+            // failed fetches retry a minute later.
+            refreshWeather()
+        }
     }
 
     private val batteryReceiver = object : BroadcastReceiver() {
@@ -395,10 +401,15 @@ class MainActivity : Activity() {
     // Weather: open-meteo with IP-based geolocation, so no location
     // permission is needed. Cached; refreshed at most every 30 minutes.
     // Long-press the weather slot to force a refresh with error feedback.
+    @Volatile
+    private var weatherFetching = false
+
     private fun refreshWeather(force: Boolean = false, notify: Boolean = false) {
         weatherView.text = status.getString("weather_text_f", "") ?: ""
         val age = System.currentTimeMillis() - status.getLong("weather_ts_f", 0L)
         if (!force && age < WEATHER_MAX_AGE_MS) return
+        if (weatherFetching) return
+        weatherFetching = true
         Thread {
             try {
                 val (lat, lon) = locate()
@@ -428,6 +439,8 @@ class MainActivity : Activity() {
                         ).show()
                     }
                 }
+            } finally {
+                weatherFetching = false
             }
         }.start()
     }
