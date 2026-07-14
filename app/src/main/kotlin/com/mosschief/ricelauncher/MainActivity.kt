@@ -190,10 +190,14 @@ class MainActivity : Activity() {
                 velocityX: Float,
                 velocityY: Float,
             ): Boolean {
-                val travel = e2.x - (e1?.x ?: return false)
+                // Judge direction by overall displacement, not end-of-fling
+                // velocity: curved thumb arcs finish more vertically than
+                // they travelled.
+                val dx = e2.x - (e1?.x ?: return false)
+                val dy = e2.y - e1.y
                 if (kotlin.math.abs(velocityX) > minVelocity &&
-                    kotlin.math.abs(travel) > minTravel &&
-                    kotlin.math.abs(velocityX) > 1.5f * kotlin.math.abs(velocityY)
+                    kotlin.math.abs(dx) > minTravel &&
+                    kotlin.math.abs(dx) > kotlin.math.abs(dy)
                 ) {
                     // Haptic tick: the gesture registered.
                     listView.performHapticFeedback(
