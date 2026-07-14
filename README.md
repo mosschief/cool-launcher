@@ -52,9 +52,9 @@ and a text-only app list sorted by most recently used.
 - Work-profile apps included, shown as `appname (Work)` and launched
   into the right profile (via `LauncherApps`)
 - Long-press a row for the system App Info screen (uninstall, etc.)
-- Fast swipe up anywhere → Firefox with the address bar focused and
-  keyboard up (mimics the Firefox search widget's intent); slower swipes
-  scroll the list as usual
+- Swipe left or right anywhere → Firefox with the address bar focused
+  and keyboard up (mimics the Firefox search widget's intent), with a
+  haptic tick when the gesture registers
 - Follows system dark mode via `values-night` resources
 - Zero dependencies: no AndroidX, no libraries — framework `Activity` +
   `ListView` only. minSdk 26, targetSdk 35.

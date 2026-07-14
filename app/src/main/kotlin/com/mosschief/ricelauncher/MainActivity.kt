@@ -177,11 +177,12 @@ class MainActivity : Activity() {
             }
         }
 
-        // Fast, steep upward flick anywhere → Firefox. Thresholds are set well
-        // above normal list-scroll flings so scrolling is unaffected.
+        // Horizontal flick (either direction) anywhere → Firefox. The list
+        // only scrolls vertically, so this never fights it; a decisively
+        // sideways fling is required (2x more horizontal than vertical).
         val density = resources.displayMetrics.density
-        val minVelocity = 2500f * density
-        val minTravel = resources.displayMetrics.heightPixels * 0.15f
+        val minVelocity = 1000f * density
+        val minTravel = resources.displayMetrics.widthPixels * 0.25f
         swipeDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onFling(
                 e1: MotionEvent?,
@@ -189,11 +190,19 @@ class MainActivity : Activity() {
                 velocityX: Float,
                 velocityY: Float,
             ): Boolean {
-                val travel = (e1?.y ?: return false) - e2.y
-                if (velocityY < -minVelocity &&
-                    travel > minTravel &&
-                    -velocityY > 2 * kotlin.math.abs(velocityX)
+                val travel = e2.x - (e1?.x ?: return false)
+                if (kotlin.math.abs(velocityX) > minVelocity &&
+                    kotlin.math.abs(travel) > minTravel &&
+                    kotlin.math.abs(velocityX) > 2 * kotlin.math.abs(velocityY)
                 ) {
+                    // Haptic tick: the gesture registered.
+                    listView.performHapticFeedback(
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            android.view.HapticFeedbackConstants.CONFIRM
+                        } else {
+                            android.view.HapticFeedbackConstants.KEYBOARD_TAP
+                        }
+                    )
                     launchFirefox()
                     return true
                 }
