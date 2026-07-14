@@ -181,8 +181,8 @@ class MainActivity : Activity() {
         // only scrolls vertically, so this never fights it; a decisively
         // sideways fling is required (2x more horizontal than vertical).
         val density = resources.displayMetrics.density
-        val minVelocity = 1000f * density
-        val minTravel = resources.displayMetrics.widthPixels * 0.25f
+        val minVelocity = 500f * density
+        val minTravel = resources.displayMetrics.widthPixels * 0.12f
         swipeDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onFling(
                 e1: MotionEvent?,
@@ -193,7 +193,7 @@ class MainActivity : Activity() {
                 val travel = e2.x - (e1?.x ?: return false)
                 if (kotlin.math.abs(velocityX) > minVelocity &&
                     kotlin.math.abs(travel) > minTravel &&
-                    kotlin.math.abs(velocityX) > 2 * kotlin.math.abs(velocityY)
+                    kotlin.math.abs(velocityX) > 1.5f * kotlin.math.abs(velocityY)
                 ) {
                     // Haptic tick: the gesture registered.
                     listView.performHapticFeedback(
