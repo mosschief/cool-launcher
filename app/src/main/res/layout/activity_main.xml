@@ -70,8 +70,6 @@
         android:paddingVertical="12dp"
         android:background="@android:color/transparent"
         android:fontFamily="@font/iosevka"
-        android:hint="@string/search_hint"
-        android:textColorHint="@color/muted"
         android:textColor="@color/fg"
         android:textSize="16sp"
         android:textCursorDrawable="@null"

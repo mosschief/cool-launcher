@@ -7,7 +7,6 @@ font, zero decoration.
 ```
 14:32  thu 9 jul              6° cloudy  87%
 ─────────────────────────────────────────────
-run…
 ─────────────────────────────────────────────
 firefox
 messages
@@ -32,15 +31,15 @@ Same palette as the desktop, following the system light/dark setting
 
 Flat everywhere: no icons, no ripples, no rounded corners, no shadows.
 The Android status bar is hidden (swipe from the top edge to peek it);
-a waybar-style row with clock and battery takes its place, above a
-wmenu-style `run…` prompt that is always focused with the keyboard up,
-and a text-only app list sorted by most recently used.
+a waybar-style row with clock, weather and battery takes its place,
+above a bare wmenu-style prompt that is always focused with the
+keyboard up, and a text-only app list sorted by most recently used.
 
 ## Features
 
 - Text-only list of launchable apps, most recently launched first
   (never-launched apps alphabetical below); tap to launch
-- The `run…` prompt is auto-focused with the keyboard up — type to
+- The prompt is auto-focused with the keyboard up — type to
   filter (prefix matches ranked first), Enter/Go launches the top match
   (wmenu behavior)
 - Hidden system status bar with a clock/date/weather/battery row of our
