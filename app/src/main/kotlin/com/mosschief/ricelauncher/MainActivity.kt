@@ -170,7 +170,14 @@ class MainActivity : Activity() {
         })
         searchView.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_NULL) {
-                shownApps.firstOrNull()?.let { launchApp(it) }
+                val query = searchView.text.toString().trim()
+                val top = shownApps.firstOrNull()
+                if (top != null) {
+                    launchApp(top)
+                } else if (query.isNotEmpty()) {
+                    // Nothing matches: treat the text as a web search.
+                    searchFirefox(query)
+                }
                 true
             } else {
                 false
@@ -344,6 +351,41 @@ class MainActivity : Activity() {
             // Uninstalled since the list was built, or the work profile is
             // paused — refresh either way.
             loadApps()
+        }
+    }
+
+    // Web search in Firefox using its own default search engine
+    // (ACTION_WEB_SEARCH is handled by Fenix's tab intent processor).
+    // Falls back to a plain search URL, then to any browser.
+    private fun searchFirefox(query: String) {
+        val pkg = FIREFOX_PACKAGES.firstOrNull { p ->
+            try {
+                packageManager.getPackageInfo(p, 0)
+                true
+            } catch (e: Exception) {
+                false
+            }
+        }
+        val attempts = mutableListOf<Intent>()
+        if (pkg != null) {
+            attempts.add(
+                Intent(Intent.ACTION_WEB_SEARCH)
+                    .putExtra(android.app.SearchManager.QUERY, query)
+                    .setPackage(pkg)
+            )
+        }
+        val url = Uri.parse("https://duckduckgo.com/?q=" + Uri.encode(query))
+        if (pkg != null) {
+            attempts.add(Intent(Intent.ACTION_VIEW, url).setPackage(pkg))
+        }
+        attempts.add(Intent(Intent.ACTION_VIEW, url))
+        for (intent in attempts) {
+            try {
+                startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return
+            } catch (e: Exception) {
+                continue
+            }
         }
     }
 

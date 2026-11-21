@@ -42,6 +42,8 @@ keyboard up, and a text-only app list sorted by most recently used.
 - The prompt is auto-focused with the keyboard up — type to
   filter (prefix matches ranked first), Enter/Go launches the top match
   (wmenu behavior)
+- Enter on text that matches no app runs it as a web search in Firefox
+  (its default search engine)
 - Hidden system status bar with a clock/date/weather/battery row of our
   own; tap the time for the clock app, the date for the calendar, the
   weather for the weather app
